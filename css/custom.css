@@ -1,0 +1,19 @@
+/* 文章内容背景深色 */
+#post {
+  background: #1a1a2e;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+/* 文章卡片背景深色 */
+.layout_page .recent-post-item {
+  background: #16213e;
+}
+
+/* 正文文字颜色 */
+#post .post-content p,
+#post .post-content h1,
+#post .post-content h2,
+#post .post-content h3 {
+  color: #e0e0e0;
+}
