@@ -1,19 +1,46 @@
-/* 文章内容背景深色 */
-#post {
-  background: #1a1a2e;
-  padding: 20px;
-  border-radius: 10px;
+/* 文章背景深蓝色 */
+.post,
+.page,
+article,
+#post,
+.recent-posts,
+.layout-page,
+#content-inner {
+    background: #0a1628 !important;
 }
 
-/* 文章卡片背景深色 */
-.layout_page .recent-post-item {
-  background: #16213e;
+/* 正文内容区域 */
+.post-content,
+.article-content,
+.content-wrap {
+    background: #0a1628 !important;
 }
 
-/* 正文文字颜色 */
-#post .post-content p,
-#post .post-content h1,
-#post .post-content h2,
-#post .post-content h3 {
-  color: #e0e0e0;
+/* 文章标题下面的背景 */
+.post-block {
+    background: #0a1628 !important;
+}
+
+/* 文章卡片背景 */
+.card,
+.card-widget {
+    background: rgba(10, 22, 40, 0.95) !important;
+}
+
+/* 文章内文字颜色调亮一点方便阅读 */
+.post-content p,
+.post-content li,
+.article-content {
+    color: #e0e0e0 !important;
+}
+
+/* 文章标题颜色 */
+.post-title a {
+    color: #f0f0f0 !important;
+}
+
+/* 文章元信息（日期、分类等）颜色 */
+.post-meta,
+.post-meta a {
+    color: #a0a0a0 !important;
 }
